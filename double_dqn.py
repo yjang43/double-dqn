@@ -74,11 +74,11 @@ class Environment:
     def step(self, action):
         # return tensor size of (N, H, W, C)
         sequence = []
-        full_reward = 0
+        score = 0
 
         for i in range(self.skip_frame):
             observation, reward, terminated, truncated, info = self.env.step(action)
-            full_reward += reward
+            score += reward
             sequence.append(observation)
             if terminated or truncated:
                 break
@@ -92,7 +92,7 @@ class Environment:
 
         sequence = np.stack(sequence)
 
-        return sequence, reward, full_reward, terminated, truncated, info
+        return sequence, reward, score, terminated, truncated, info
         
 
 class ReplayMemory:
@@ -123,9 +123,9 @@ class ReplayMemory:
 
 
 class DoubleDQN:
-    def __init__(self, config_path):
+    def __init__(self, config):
         # load config
-        self.config = Config(config_path)
+        self.config = config
 
         # initialize environment and agent
         self.env = Environment(self.config)
@@ -133,7 +133,7 @@ class DoubleDQN:
 
     def evaluate(self):
         env = Environment(self.config)
-        total_accum_reward = 0
+        total_score = 0
 
         for i in range(self.config.eval_run):
             sequence, _ = env.reset()
@@ -142,15 +142,15 @@ class DoubleDQN:
             while not done:
                 phi_sequence = self._preprocess(sequence)
                 action = self.agent.sample_action(phi_sequence.to(self.config.device), greedy=True)
-                next_sequence, _, full_reward, terminated, truncated, _ = env.step(action)
+                next_sequence, _, score, terminated, truncated, _ = env.step(action)
 
-                total_accum_reward += full_reward
+                total_score += score
 
                 sequence = next_sequence
                 done = terminated or truncated
         
-        avg_accum_reward = total_accum_reward / self.config.eval_run
-        return avg_accum_reward
+        avg_score = total_score / self.config.eval_run
+        return avg_score
 
     def _gradient_norm(self, model):
         total_norm = 0
@@ -227,8 +227,8 @@ class DoubleDQN:
                     self._update_target_weight(target_net, policy_net)
 
                 if (self.agent.step + 1) % self.config.eval_every == 0:
-                    accum_reward = self.evaluate()
-                    accum_rewards.append((self.agent.step + 1, accum_reward))
+                    score = self.evaluate()
+                    score.append((self.agent.step + 1, score))
                     # save plot
                     plot_graph(os.path.join("img", self.config.atari_id.replace('/', ':')), *zip(*accum_rewards))
 

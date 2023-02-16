@@ -33,7 +33,7 @@ def set_seed(seed):
     np.random.seed(seed)
 
 def plot_graph(file_path, x, y):
-    plt.ylabel("Accumulated reward")
+    plt.ylabel("Score")
     plt.xlabel("Training steps")
     plt.plot(x, y)
     plt.title(file_path)
