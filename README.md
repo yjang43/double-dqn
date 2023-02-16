@@ -15,7 +15,7 @@ pip install "gymnasium[atari]"
 ## Run
 ```bash
 # make adjustment to config files in config directory
-python main.py
+python main.py --config_path ./config/base.yaml
 ```
 
 ## Result

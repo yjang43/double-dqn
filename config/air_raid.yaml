@@ -1,5 +1,5 @@
 # Train option
-atari_id: "ALE/Pong-v5"
+atari_id: "ALE/AirRaid-v5"
 device: "mps"
 seed: 42
 
@@ -14,7 +14,7 @@ start_epsilon: 1.0
 end_epsilon: 0.1
 anneal_step: 1000000
 
-lr: 0.00001
+lr: 0.00025
 momentum: 0.95
 target_update_frequency: 5000
 

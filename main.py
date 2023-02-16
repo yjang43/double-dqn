@@ -12,7 +12,7 @@ def set_args():
         default="config/base.yaml",
         type=str
     )
-    args = parser.parse_args
+    args = parser.parse_args()
     return args
 
 

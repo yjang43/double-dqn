@@ -179,7 +179,7 @@ class DoubleDQN:
 
         # logging info
         episode = 1
-        accum_rewards = []
+        scores = []
 
         progbar = tqdm(total=self.config.total_step)
         while self.agent.step < self.config.total_step:
@@ -228,15 +228,16 @@ class DoubleDQN:
 
                 if (self.agent.step + 1) % self.config.eval_every == 0:
                     score = self.evaluate()
-                    score.append((self.agent.step + 1, score))
+                    scores.append((self.agent.step + 1, score))
                     # save plot
-                    plot_graph(os.path.join("img", self.config.atari_id.replace('/', ':')), *zip(*accum_rewards))
+                    plot_graph(os.path.join("img", self.config.atari_id.replace('/', ':')), *zip(*scores))
 
                 self.agent.step += 1
                 progbar.update()
 
             if episode in self.config.record_episodes and self.config.record_play:
-                write_video(os.path.join("video", f"episode_{episode}.mp4"), self.env.game_play)
+                video_path = os.path.join("video", f"{self.config.atari_id.replace('/', ':')}_episode_{episode}.mp4")
+                write_video(video_path, self.env.game_play)
 
             # To make sure the model is learning
             gradient = self._gradient_norm(policy_net)

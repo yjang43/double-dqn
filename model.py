@@ -12,7 +12,7 @@ class FunctionApproximation(nn.Module):
                 out_channels=32,
                 kernel_size=8,
                 stride=4,
-                # bias=False
+                bias=False
             ),
             nn.ReLU()
         )
@@ -23,7 +23,7 @@ class FunctionApproximation(nn.Module):
                 out_channels=64,
                 kernel_size=4,
                 stride=2,
-                # bias=False
+                bias=False
             ),
             nn.ReLU()
         )
@@ -34,7 +34,7 @@ class FunctionApproximation(nn.Module):
                 out_channels=64,
                 kernel_size=3,
                 stride=1,
-                # bias=False
+                bias=False
             ),
             nn.ReLU()
         )
@@ -43,14 +43,14 @@ class FunctionApproximation(nn.Module):
             nn.Linear(
                 in_features=7*7*64,
                 out_features=512,
-                # bias=False
+                bias=False
             ),
             nn.ReLU()
         )
         self.output_layer = nn.Linear(
             in_features=512,
             out_features=config.action_n,
-            # bias=False
+            bias=False
         )
     
     def forward(self, inp):
