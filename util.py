@@ -1,5 +1,10 @@
 import yaml
+import random
+
 import cv2
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 
@@ -21,8 +26,20 @@ class Config:
         else:
             super(Config, self).__setattr__(attr, value)
 
-
 # util
+def set_seed(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+def plot_graph(file_path, x, y):
+    plt.ylabel("Accumulated reward")
+    plt.xlabel("Training steps")
+    plt.plot(x, y)
+    plt.title(file_path)
+    plt.savefig(file_path)
+
+
 def write_video(video_path, frames, fps=24):
     assert '.mp4' in video_path, "Only supports *.mp4 for codec"
     height, width, _ = frames[0].shape

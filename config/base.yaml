@@ -1,26 +1,48 @@
-replay_memory_size: 30000
-batch_size: 32
-skip_frame: 4
-atari_id: "ALE/Breakout-v5"
-record_play: true
+# Train option
+atari_id: "ALE/Pong-v5"
+device: "mps"
+total_step: 5000000
 
+# Hyperparameter
+batch_size: 32
+replay_memory_size: 30000
+skip_frame: 4
+
+gamma: 0.99
 start_epsilon: 1.0
 end_epsilon: 0.1
 anneal_step: 1000000
 
-
-# num_episode: 10
 lr: 0.00025
-# lr: 0.001
 momentum: 0.95
+target_update_frequency: 5000
 
-gamma: 0.99
+# Evaluation option
+eval_every: 1000
+eval_run: 5
 
-target_update_frequency: 100000
-
-total_step: 50000000
-
-device: "mps"
-
-
-record_episodes: [1, 100, 500, 1000, 3000, 5000, 10000, 30000, 50000, 100000, 150000, 200000, 300000, 500000]
+record_play: true
+record_episodes:
+  - 1
+  - 10
+  - 100
+  - 300
+  - 400
+  - 500
+  - 600
+  - 700
+  - 800
+  - 900
+  - 1000
+  - 1200
+  - 1400
+  - 1600
+  - 1800
+  - 2000
+  - 2500
+  - 3000
+  - 4000
+  - 5000
+  - 6000
+  - 7000
+  - 8000

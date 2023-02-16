@@ -11,7 +11,7 @@ import numpy as np
 from collections import deque
 from tqdm import tqdm
 from model import FunctionApproximation
-from util import Config, write_video
+from util import Config, write_video, plot_graph
 
 
 
@@ -36,11 +36,9 @@ class Agent:
         action = self._epsilon_greedy(q, epsilon)
         return action
 
-
     def _anneal_epsilon(self):
         rate = (self.end_epsilon - self.start_epsilon) / self.anneal_step
         return max(self.start_epsilon + rate * self.step, self.end_epsilon)
-
 
     def _epsilon_greedy(self, q, epsilon):
         # random action for epsilon otherwise argmax Q(a)
@@ -76,8 +74,11 @@ class Environment:
     def step(self, action):
         # return tensor size of (N, H, W, C)
         sequence = []
+        full_reward = 0
+
         for i in range(self.skip_frame):
             observation, reward, terminated, truncated, info = self.env.step(action)
+            full_reward += reward
             sequence.append(observation)
             if terminated or truncated:
                 break
@@ -91,12 +92,11 @@ class Environment:
 
         sequence = np.stack(sequence)
 
-        return sequence, reward, terminated, truncated, info
+        return sequence, reward, full_reward, terminated, truncated, info
         
 
 class ReplayMemory:
     def __init__(self, config):
-        # self.Transition = namedtuple('Transition', ['sequence', 'action', 'reward', 'next_sequence'])
         self.transition_queue = deque([], maxlen=config.replay_memory_size)
         self.batch_size = config.batch_size
 
@@ -132,7 +132,33 @@ class DoubleDQN:
         self.agent = Agent(FunctionApproximation(self.config), self.config)
 
     def evaluate(self):
-        pass
+        env = Environment(self.config)
+        total_accum_reward = 0
+
+        for i in range(self.config.eval_run):
+            sequence, _ = env.reset()
+            done = False
+
+            while not done:
+                phi_sequence = self._preprocess(sequence)
+                action = self.agent.sample_action(phi_sequence.to(self.config.device), greedy=True)
+                next_sequence, _, full_reward, terminated, truncated, _ = env.step(action)
+
+                total_accum_reward += full_reward
+
+                sequence = next_sequence
+                done = terminated or truncated
+        
+        avg_accum_reward = total_accum_reward / self.config.eval_run
+        return avg_accum_reward
+
+    def _gradient_norm(self, model):
+        total_norm = 0
+        for p in model.parameters():
+            param_norm = p.grad.data.norm(2)
+            total_norm += param_norm.item() ** 2
+        total_norm = total_norm ** (1. / 2)
+        return total_norm
 
     def train(self):
         policy_net = self.agent.func_approx.to(self.config.device)
@@ -152,24 +178,21 @@ class DoubleDQN:
         )
 
         # logging info
-        accum_rewards = []
         episode = 1
+        accum_rewards = []
 
         progbar = tqdm(total=self.config.total_step)
         while self.agent.step < self.config.total_step:
             sequence, _ = self.env.reset()
             done = False
 
-            accum_reward = 0
-
             while not done:
                 phi_sequence = self._preprocess(sequence)
                 action = self.agent.sample_action(phi_sequence.to(self.config.device))
-                next_sequence, reward, terminated, truncated, _ = self.env.step(action)
+                next_sequence, reward, _, terminated, truncated, _ = self.env.step(action)
 
                 # clip reward
-                reward = reward > 0
-                accum_reward += reward
+                reward = self._clip_reward(reward)
 
                 phi_next_sequence = self._preprocess(next_sequence)
                 assert phi_sequence.is_cpu, "tensors in replay memory should be on CPU"
@@ -193,7 +216,7 @@ class DoubleDQN:
                 
                 # compute target and prediction
                 target = self._make_target(batch, target_net, policy_net)
-                pred = policy_net(batch['phi_sequence']).gather(1, batch['action'].unsqueeze(0))
+                pred = policy_net(batch['phi_sequence']).gather(1, batch['action'].unsqueeze(1)).squeeze(1)
 
                 optimizer.zero_grad()
                 loss = criterion(pred, target)
@@ -203,28 +226,37 @@ class DoubleDQN:
                 if (self.agent.step + 1) % self.config.target_update_frequency == 0:
                     self._update_target_weight(target_net, policy_net)
 
+                if (self.agent.step + 1) % self.config.eval_every == 0:
+                    accum_reward = self.evaluate()
+                    accum_rewards.append((self.agent.step + 1, accum_reward))
+                    # save plot
+                    plot_graph(os.path.join("img", self.config.atari_id.replace('/', ':')), *zip(*accum_rewards))
+
                 self.agent.step += 1
                 progbar.update()
 
-            if episode in self.config.record_episodes:
+            if episode in self.config.record_episodes and self.config.record_play:
                 write_video(os.path.join("video", f"episode_{episode}.mp4"), self.env.game_play)
 
-            progbar.set_description(f"Episode {episode} reward: {accum_reward}")
-            accum_rewards.append(accum_reward)
+            # To make sure the model is learning
+            gradient = self._gradient_norm(policy_net)
+
+            progbar.set_description(f"Episode: {episode} (gradient: {round(gradient, 5)})")
             episode += 1
 
     def _preprocess(self, sequence):
         # preprocess (N, H, W, C) to (C', H, W)
         transforms = T.Compose([
-            # T.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             T.Grayscale(1),
             T.Resize((84, 84)),
         ])
-        seq = torch.from_numpy(sequence)
-        seq = seq.permute(0, 3, 1 ,2)
-        seq = T.functional.convert_image_dtype(seq, dtype=torch.float)
-        seq = transforms(seq).squeeze(1)
-        return seq
+        sequence = torch.from_numpy(sequence)
+        sequence = T.functional.convert_image_dtype(sequence, dtype=torch.float)
+        phi_sequence = transforms(sequence.permute(0, 3, 1 ,2)).squeeze(1)
+        return phi_sequence
+
+    def _clip_reward(self, reward):
+        return reward / max(abs(reward), 1e-5)
 
     def _update_target_weight(self, target_net, policy_net):
         target_net.load_state_dict(policy_net.state_dict())
@@ -234,7 +266,7 @@ class DoubleDQN:
         # Decomposing max operation into action selection and action evaluation
         with torch.no_grad():
             _, max_action = torch.max(policy_net(batch['phi_next_sequence']), 1)
-            bootstrap = target_net(batch['phi_next_sequence']).gather(1, max_action.unsqueeze(0))
+            bootstrap = target_net(batch['phi_next_sequence']).gather(1, max_action.unsqueeze(1)).squeeze(1)
         
         # mask terminal
         target = batch['reward'] + ~batch['terminated'] * self.config.gamma * bootstrap
