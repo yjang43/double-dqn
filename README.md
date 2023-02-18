@@ -34,3 +34,5 @@ python main.py --config_path ./config/base.yaml
 ![Episode 100](img/episode_100.gif)
 ##### Episode 1000
 ![Episode 1000](img/episode_1000.gif)
+
+_NOTE: These are samples of episodes during training process. So, the policy of sample is epsilon greedy, meaning sometimes they take random actions to explore._
