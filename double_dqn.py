@@ -52,47 +52,30 @@ class Agent:
 
 class Environment:
     def __init__(self, config):
-        self.env = gym.make(config.atari_id)
+        self.env = gym.make(config.atari_id, frameskip=config.frame_skip)
         setattr(config, 'action_n', self.env.action_space.n)
 
-        self.skip_frame = config.skip_frame
-        self.record_play = config.record_play
+        self.sequence_len = config.sequence_len
 
     def reset(self):
         # return tensor size of (N, H, W, C)
-        if self.record_play:
-            self.game_play = []
 
         observation, info = self.env.reset()
-        sequence = np.tile(observation, (self.skip_frame, 1, 1, 1))
+        self.game_play = [observation for _ in range(self.sequence_len)]
 
-        if self.record_play:
-            self.game_play.append(observation)
+        sequence = np.stack(self.game_play[-self.sequence_len: ])
 
         return sequence, info
 
     def step(self, action):
         # return tensor size of (N, H, W, C)
-        sequence = []
-        score = 0
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        self.game_play.append(observation)
 
-        for i in range(self.skip_frame):
-            observation, reward, terminated, truncated, info = self.env.step(action)
-            score += reward
-            sequence.append(observation)
-            if terminated or truncated:
-                break
+        sequence = np.stack(self.game_play[-self.sequence_len: ])
 
-        if self.record_play:
-            self.game_play.extend(sequence)
-
-        # in case of termination/truncation during skip-frame, repeat the last frame
-        for r_i in range(i + 1, self.skip_frame):
-            sequence.append(observation)
-
-        sequence = np.stack(sequence)
-
-        return sequence, reward, score, terminated, truncated, info
+        # return sequence, reward, score, terminated, truncated, info
+        return sequence, reward, terminated, truncated, info
         
 
 class ReplayMemory:
@@ -142,9 +125,9 @@ class DoubleDQN:
             while not done:
                 phi_sequence = self._preprocess(sequence)
                 action = self.agent.sample_action(phi_sequence.to(self.config.device), greedy=True)
-                next_sequence, _, score, terminated, truncated, _ = env.step(action)
+                next_sequence, reward, terminated, truncated, _ = env.step(action)
 
-                total_score += score
+                total_score += reward
 
                 sequence = next_sequence
                 done = terminated or truncated
@@ -189,7 +172,7 @@ class DoubleDQN:
             while not done:
                 phi_sequence = self._preprocess(sequence)
                 action = self.agent.sample_action(phi_sequence.to(self.config.device))
-                next_sequence, reward, _, terminated, truncated, _ = self.env.step(action)
+                next_sequence, reward, terminated, truncated, _ = self.env.step(action)
 
                 # clip reward
                 reward = self._clip_reward(reward)

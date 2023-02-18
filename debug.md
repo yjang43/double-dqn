@@ -39,3 +39,18 @@ Many of the tutorial codes does not learn from pixels, thus learn so much faster
 Do not let them blind you from the difficulty of training the agent from unformatted data.
 
 __So be patient.__
+
+
+### 4. Misunderstanding frame skip
+The concept of frame skipping is quite confusing because the original DQN paper states that they skip frames in which agent repeats the same actions, and that they take last four frames to feed into the function approximation model.
+
+As I understood it as taking the last four frames of the same action.
+Then agent was stuck in the suboptimal behavior.
+![bad_frameskip](img/(bad_frameskip)ALE%3APong-v5.png)
+
+Reading through some related discussion in [reddit](https://www.reddit.com/r/reinforcementlearning/comments/fucovf/confused_about_frame_skipping_in_dqn/), I found an amazing [blog](https://danieltakeshi.github.io/2016/11/25/frame-skipping-and-preprocessing-for-deep-q-networks-on-atari-2600-games/) that breaks down the confusion of frame-skipping
+
+So, the frame skipping and feeding last four frames are tagent. 
+Thus, each frame that's fed into the function approximator should be the observation of different actions.
+Frame skipping being fixed, the agent finds actions to beat the game.
+![good_frameskip](img/ALE%3APong-v5%20copy.png)

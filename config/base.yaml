@@ -7,12 +7,13 @@ seed: 42
 total_step: 5000000
 replay_memory_size: 30000
 batch_size: 32
-skip_frame: 4
+frame_skip: 4
+sequence_len: 4
 
 gamma: 0.99
 start_epsilon: 1.0
 end_epsilon: 0.1
-anneal_step: 1000000
+anneal_step: 10000
 
 lr: 0.00001
 momentum: 0.95
@@ -20,7 +21,7 @@ target_update_frequency: 5000
 
 # Evaluation option
 eval_every: 1000
-eval_run: 5
+eval_run: 1
 
 record_play: true
 record_episodes:
