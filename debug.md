@@ -53,4 +53,4 @@ Reading through some related discussion in [reddit](https://www.reddit.com/r/rei
 So, the frame skipping and feeding last four frames are tagent. 
 Thus, each frame that's fed into the function approximator should be the observation of different actions.
 Frame skipping being fixed, the agent finds actions to beat the game.
-![good_frameskip](img/ALE%3APong-v5%20copy.png)
+![good_frameskip](img/ALE%3APong-v5.png)
